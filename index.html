@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aqua_Alert</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f9ff;
+      margin: 0;
+      padding: 0;
+      color: #333;
+    }
+    header {
+      background: #0077b6;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-size: 1.5em;
+      font-weight: bold;
+    }
+    .container {
+      max-width: 750px;
+      margin: 20px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h2 {
+      color: #0077b6;
+      margin-top: 0;
+    }
+    textarea, select, input {
+      width: 100%;
+      padding: 10px;
+      font-size: 1em;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    button {
+      background: #0077b6;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1em;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    button:hover {
+      background: #023e8a;
+    }
+    .alerts {
+      margin-top: 20px;
+    }
+    .alert {
+      background: #caf0f8;
+      border-left: 6px solid #0077b6;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+    }
+    .time {
+      font-size: 0.8em;
+      color: #555;
+    }
+    .hidden {
+      display: none;
+    }
+    .user-select {
+      margin: 10px 0;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    .user-select label {
+      display: block;
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <header>🚰 Aqua_Alert</header>
+  
+  <!-- LOGIN PAGE -->
+  <div class="container" id="loginPage">
+    <h2>Login to Aqua_Alert</h2>
+    <input type="text" id="username" placeholder="Enter Username">
+    <input type="password" id="password" placeholder="Enter Password">
+    <button onclick="login()">Login</button>
+  </div>
+  
+  <!-- MANAGER DASHBOARD -->
+  <div class="container hidden" id="managerPage">
+    <h2>Manager Dashboard</h2>
+    <textarea id="message" placeholder="Type water update..."></textarea>
+    
+    <!-- Select users -->
+    <div class="user-select">
+      <strong>Select Recipients:</strong><br>
+      <label><input type="checkbox" id="allUsers" onclick="toggleAll()"> All Residents</label>
+      <div id="userList"></div>
+    </div>
+    
+    <button onclick="postAlert()">Broadcast</button>
+    <button onclick="logout()">Logout</button>
+    <button id="clearBtn" class="hidden" onclick="clearAlerts()">🗑 Clear All Broadcasts</button>
+    
+    <h2>📢 Latest Alerts</h2>
+    <div class="alerts" id="managerAlerts"></div>
+  </div>
+  
+  <!-- RESIDENT DASHBOARD -->
+  <div class="container hidden" id="residentPage">
+    <h2>Resident Dashboard</h2>
+    <button onclick="logout()">Logout</button>
+    <div class="alerts" id="residentAlerts"></div>
+  </div>
+
+  <script>
+    // --- DEMO ACCOUNTS ---
+    const users = {
+      "admin":   { password: "admin123", role: "manager" },
+      "manager1": { password: "pass1", role: "manager" },
+      "manager2": { password: "pass2", role: "manager" },
+      "user":   { password: "user123", role: "resident" },
+      "user1":  { password: "user1pass", role: "resident" },
+      "user2":  { password: "user2pass", role: "resident" },
+      "user3":  { password: "user3pass", role: "resident" },
+      "user4":  { password: "user4pass", role: "resident" },
+      "user5":  { password: "user5pass", role: "resident" }
+    };
+
+    // --- LOGIN HANDLER ---
+    function login() {
+      let uname = document.getElementById("username").value.trim();
+      let pass = document.getElementById("password").value.trim();
+
+      if (users[uname] && users[uname].password === pass) {
+        localStorage.setItem("role", users[uname].role);
+        localStorage.setItem("user", uname);
+        showPage(users[uname].role, uname);
+      } else {
+        alert("Invalid username or password!");
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem("role");
+      localStorage.removeItem("user");
+      document.getElementById("loginPage").classList.remove("hidden");
+      document.getElementById("managerPage").classList.add("hidden");
+      document.getElementById("residentPage").classList.add("hidden");
+    }
+
+    function showPage(role, uname) {
+      document.getElementById("loginPage").classList.add("hidden");
+      if (role === "manager") {
+        document.getElementById("managerPage").classList.remove("hidden");
+        loadAlerts("managerAlerts", uname);
+        populateUserList();
+
+        if (uname === "admin") {
+          document.getElementById("clearBtn").classList.remove("hidden");
+        } else {
+          document.getElementById("clearBtn").classList.add("hidden");
+        }
+
+      } else {
+        document.getElementById("residentPage").classList.remove("hidden");
+        loadAlerts("residentAlerts", uname);
+      }
+    }
+
+    // --- POPULATE USER LIST ---
+    function populateUserList() {
+      let container = document.getElementById("userList");
+      container.innerHTML = "";
+      for (let u in users) {
+        if (users[u].role === "resident") {
+          container.innerHTML += `<label><input type="checkbox" class="userCheck" value="${u}"> ${u}</label>`;
+        }
+      }
+    }
+
+    // --- TOGGLE ALL USERS ---
+    function toggleAll() {
+      let all = document.getElementById("allUsers").checked;
+      document.querySelectorAll(".userCheck").forEach(cb => cb.checked = all);
+    }
+
+    // --- ALERT FUNCTIONS ---
+    function loadAlerts(targetId, currentUser) {
+      let alerts = JSON.parse(localStorage.getItem("alerts")) || [];
+      let alertBox = document.getElementById(targetId);
+      alertBox.innerHTML = "";
+      alerts.forEach(a => {
+        if (targetId === "managerAlerts" || a.to.includes(currentUser) || a.to.includes("all")) {
+          alertBox.innerHTML += `
+            <div class="alert">
+              ${a.text}
+              <div class="time">📅 ${a.time}</div>
+            </div>
+          `;
+        }
+      });
+    }
+
+    function postAlert() {
+      let msg = document.getElementById("message").value.trim();
+      if (!msg) return alert("Please type a message!");
+      
+      let selected = [];
+      document.querySelectorAll(".userCheck:checked").forEach(cb => selected.push(cb.value));
+      if (document.getElementById("allUsers").checked) {
+        selected = ["all"];
+      }
+      if (selected.length === 0) return alert("Please select at least one recipient!");
+
+      let alerts = JSON.parse(localStorage.getItem("alerts")) || [];
+      alerts.unshift({ text: msg, time: new Date().toLocaleString(), to: selected });
+      localStorage.setItem("alerts", JSON.stringify(alerts));
+      document.getElementById("message").value = "";
+      loadAlerts("managerAlerts", localStorage.getItem("user"));
+    }
+
+    function clearAlerts() {
+      if (confirm("Are you sure you want to clear all broadcasts?")) {
+        localStorage.removeItem("alerts");
+        loadAlerts("managerAlerts", localStorage.getItem("user"));
+      }
+    }
+
+    // --- AUTO LOGIN ON REFRESH ---
+    window.onload = () => {
+      let role = localStorage.getItem("role");
+      let user = localStorage.getItem("user");
+      if (role && user) showPage(role, user);
+    }
+  </script>
+</body>
+</html>
